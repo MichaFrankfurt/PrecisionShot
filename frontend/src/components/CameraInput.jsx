@@ -7,16 +7,16 @@ export default function CameraInput({ onAnalyze, loading }) {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('');
   const [cameraName, setCameraName] = useState('');
 
   const startCamera = useCallback(async () => {
     setError('');
-    setCameraReady(false);
-    setStatus('Kamera wird gestartet...');
+    setStarting(true);
 
     try {
+      // Load saved camera from settings
       const token = localStorage.getItem('token');
       let deviceId = '';
       if (token) {
@@ -40,90 +40,100 @@ export default function CameraInput({ onAnalyze, loading }) {
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
 
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       streamRef.current = stream;
       setCameraName(stream.getVideoTracks()[0]?.label || 'Kamera');
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().then(() => {
-            setCameraReady(true);
-            setStatus('');
-          });
+      // Assign to video element — videoRef is always in DOM
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        // Use event listener instead of property assignment (more reliable on iOS)
+        const onMetadata = () => {
+          video.play()
+            .then(() => { setCameraReady(true); setStarting(false); })
+            .catch(() => { setCameraReady(true); setStarting(false); });
+          video.removeEventListener('loadedmetadata', onMetadata);
         };
+        video.addEventListener('loadedmetadata', onMetadata);
+
+        // Fallback: if metadata already loaded (e.g. switching cameras)
+        if (video.readyState >= 1) {
+          video.play()
+            .then(() => { setCameraReady(true); setStarting(false); })
+            .catch(() => { setCameraReady(true); setStarting(false); });
+        }
       }
     } catch (err) {
       setError(t.cameraError + ': ' + err.message);
-      setStatus('');
+      setStarting(false);
     }
   }, [t]);
 
-  function stopCamera() {
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  function handleAnalyzeFromCamera() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const frame = canvas.toDataURL('image/jpeg', 0.85);
+    // Stop camera
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
     setCameraReady(false);
-  }
-
-  useEffect(() => {
-    return () => stopCamera();
-  }, []);
-
-  function handleAnalyzeFromCamera() {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const frame = canvas.toDataURL('image/jpeg', 0.85);
-    stopCamera();
     onAnalyze(frame);
-  }
-
-  if (!cameraReady && !streamRef.current) {
-    return (
-      <div className="flex flex-col items-center gap-4">
-        <button onClick={startCamera}
-          className="w-full h-64 border-2 border-dashed border-highlight hover:border-accent/50 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition">
-          <span className="text-4xl opacity-50">📷</span>
-          <p className="text-gray-400 text-sm">{t.cameraStart}</p>
-          <p className="text-gray-600 text-xs">{t.cameraPermission}</p>
-        </button>
-        {error && <p className="text-accent text-sm text-center">{error}</p>}
-        <canvas ref={canvasRef} className="hidden" />
-        <video ref={videoRef} className="hidden" autoPlay playsInline muted />
-      </div>
-    );
   }
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {cameraName && <p className="text-gray-500 text-xs">{cameraName}</p>}
-
-      <div className="w-full">
+      {/* Video element — ALWAYS in DOM, hidden when not streaming */}
+      <div className={`w-full ${cameraReady ? '' : 'hidden'}`}>
+        {cameraName && <p className="text-gray-500 text-xs text-center mb-2">{cameraName}</p>}
         <div className="relative rounded-xl overflow-hidden border border-highlight bg-black">
-          <video ref={videoRef} autoPlay playsInline muted
-            style={{ width: '100%', height: '280px', objectFit: 'cover', display: 'block' }} />
-          {cameraReady && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-48 h-48 border border-accent/40 rounded-full" />
-              <div className="absolute w-0.5 h-10 bg-accent/40" />
-              <div className="absolute w-10 h-0.5 bg-accent/40" />
-            </div>
-          )}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ width: '100%', height: '280px', objectFit: 'cover', display: 'block' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-48 h-48 border border-accent/40 rounded-full" />
+            <div className="absolute w-0.5 h-10 bg-accent/40" />
+            <div className="absolute w-10 h-0.5 bg-accent/40" />
+          </div>
         </div>
-
-        {cameraReady && (
-          <button onClick={handleAnalyzeFromCamera} disabled={loading}
-            className="w-full mt-4 bg-accent hover:bg-accent/80 py-3 rounded-lg font-heading font-semibold tracking-wide transition disabled:opacity-50">
-            {loading ? t.aiAnalyzing : t.analyzeSeries}
-          </button>
-        )}
+        <button onClick={handleAnalyzeFromCamera} disabled={loading}
+          className="w-full mt-4 bg-accent hover:bg-accent/80 py-3 rounded-lg font-heading font-semibold tracking-wide transition disabled:opacity-50">
+          {loading ? t.aiAnalyzing : t.analyzeSeries}
+        </button>
       </div>
 
-      {status && <p className="text-gray-400 text-xs">{status}</p>}
+      {/* Start button — shown when camera not active */}
+      {!cameraReady && (
+        <button onClick={startCamera} disabled={starting}
+          className="w-full h-48 sm:h-64 border-2 border-dashed border-highlight hover:border-accent/50 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition disabled:opacity-50">
+          <span className="text-4xl opacity-50">📷</span>
+          <p className="text-gray-400 text-sm">{starting ? 'Kamera wird gestartet...' : t.cameraStart}</p>
+          {!starting && <p className="text-gray-600 text-xs">{t.cameraPermission}</p>}
+          {starting && <p className="text-accent text-xs animate-pulse">Bitte warten...</p>}
+        </button>
+      )}
+
       {error && <p className="text-accent text-sm text-center">{error}</p>}
       <canvas ref={canvasRef} className="hidden" />
     </div>

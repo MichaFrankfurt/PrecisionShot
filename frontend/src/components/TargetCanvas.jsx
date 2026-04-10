@@ -11,6 +11,7 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
   const { t } = useI18n();
   const svgRef = useRef(null);
   const [size, setSize] = useState(BASE_SIZE);
+  const touchedRef = useRef(false); // Prevents click after touch on iOS
 
   const center = size / 2;
   const ringWidth = (size / 2 - 10) / RINGS;
@@ -19,21 +20,25 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
   const getCoords = useCallback((clientX, clientY) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return null;
-    const x = (clientX - rect.left - center) / scale;
-    const y = (clientY - rect.top - center) / scale;
-    return { x, y };
+    return {
+      x: (clientX - rect.left - center) / scale,
+      y: (clientY - rect.top - center) / scale
+    };
   }, [center, scale]);
 
   function handleClick(e) {
+    // On touch devices, ignore the synthetic click that follows touchend
+    if (touchedRef.current) { touchedRef.current = false; return; }
     if (shots.length >= maxShots) return;
     const coords = getCoords(e.clientX, e.clientY);
     if (coords) onShot(coords);
   }
 
-  function handleTouch(e) {
+  function handleTouchEnd(e) {
     if (shots.length >= maxShots) return;
     e.preventDefault();
-    const touch = e.touches[0];
+    touchedRef.current = true; // Block the following click event
+    const touch = e.changedTouches[0]; // Use changedTouches for touchend
     if (!touch) return;
     const coords = getCoords(touch.clientX, touch.clientY);
     if (coords) onShot(coords);
@@ -59,7 +64,7 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
         width={size}
         height={size}
         onClick={handleClick}
-        onTouchStart={handleTouch}
+        onTouchEnd={handleTouchEnd}
         className="cursor-crosshair select-none touch-none max-w-full"
         style={{ filter: 'drop-shadow(0 0 20px rgba(227, 27, 35, 0.15))' }}
       >
