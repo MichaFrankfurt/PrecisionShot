@@ -19,6 +19,7 @@ export default function NewSession() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [maxShots, setMaxShots] = useState(5);
   const [error, setError] = useState('');
+  const [resetKey, setResetKey] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function NewSession() {
     setResult(null);
     setError('');
     setLoadingMsg('');
+    setResetKey(k => k + 1);
   }
 
   function handleModeChange(newMode) {
@@ -144,7 +146,7 @@ export default function NewSession() {
       <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         <div>
           {mode === 'manual' && (
-            <TargetCanvas shots={shots} onShot={handleShot} maxShots={maxShots} />
+            <TargetCanvas key={resetKey} shots={shots} onShot={handleShot} maxShots={maxShots} />
           )}
           {mode === 'live' && !result && (
             <LiveDetection maxShots={maxShots} onShotsComplete={handleLiveShotsComplete} />
@@ -158,10 +160,10 @@ export default function NewSession() {
 
           {/* Show target with detected shots after analysis */}
           {mode !== 'manual' && mode !== 'live' && shots.length > 0 && (
-            <TargetCanvas shots={shots} onShot={() => {}} maxShots={maxShots} />
+            <TargetCanvas key={`r${resetKey}`} shots={shots} onShot={() => {}} maxShots={maxShots} />
           )}
           {mode === 'live' && result && (
-            <TargetCanvas shots={shots} onShot={() => {}} maxShots={maxShots} />
+            <TargetCanvas key={`l${resetKey}`} shots={shots} onShot={() => {}} maxShots={maxShots} />
           )}
         </div>
 
