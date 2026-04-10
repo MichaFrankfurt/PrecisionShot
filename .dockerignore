@@ -1,0 +1,8 @@
+node_modules
+.git
+.claude
+*.log
+.DS_Store
+.env
+backend/db/precisionshot.db
+frontend/node_modules/.vite
