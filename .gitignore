@@ -1,0 +1,9 @@
+node_modules/
+.env
+backend/db/precisionshot.db
+frontend/node_modules/.vite/
+dist/
+.DS_Store
+*.log
+*.mjs.timestamp*
+backend/db/*.db-*

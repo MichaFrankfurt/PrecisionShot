@@ -1,0 +1,93 @@
+export default {
+  // Login
+  subtitle: 'Your AI Shooting Coach',
+  email: 'Email',
+  password: 'Password',
+  username: 'Username',
+  login: 'Login',
+  register: 'Register',
+  alreadyRegistered: 'Already registered?',
+  noAccount: 'No account yet?',
+
+  // Navbar
+  newSession: '+ New Session',
+  logout: 'Logout',
+
+  // Dashboard
+  history: 'Training History',
+  noTrainings: 'No trainings yet',
+  startFirst: 'Start first session',
+  loading: 'Loading...',
+  of50: 'of 50',
+
+  // NewSession
+  newSeries: 'New Session',
+  analyzeSeries: 'Analyze session',
+  aiAnalyzing: 'AI analyzing...',
+  newSeriesBtn: 'New Session',
+  dashboard: 'Dashboard',
+  reset: 'Reset',
+
+  // SessionDetail
+  sessionNotFound: 'Session not found',
+  back: 'Back',
+  series: 'Session',
+
+  // TargetCanvas
+  shots: 'shots',
+  clickTarget: 'Click on the target',
+
+  // ShotList
+  shotsList: 'Shots',
+
+  // AIFeedback
+  aiCoach: 'AI Coach',
+  aiAnalyzingShort: 'AI analyzing...',
+
+  // Input Modes
+  modeManual: 'Manual',
+  modeCamera: 'Camera',
+  modeUpload: 'Upload Image',
+
+  // Camera
+  cameraStart: 'Start Camera',
+  cameraPermission: 'Please allow camera access',
+  takePhoto: 'Take Photo',
+  retakePhoto: 'Retake',
+  detectShots: 'Detect Shots',
+  detecting: 'Detecting shots...',
+  cameraError: 'Camera not available',
+  noShotsDetected: 'No shots detected. Please try again.',
+
+  // Upload
+  uploadHint: 'Drag image here or click to select',
+  uploadFormats: 'JPG, PNG — max 10 MB',
+  analyzeImage: 'Detect Shots',
+  removeImage: 'Remove Image',
+
+  // Settings
+  settings: 'Settings',
+  settingsSaved: 'Settings saved!',
+  distance: 'Distance',
+  distanceUnit: 'meters',
+  targetType: 'Target Type',
+  targetMonitor: 'Electronic (Meyton)',
+  targetPaper: 'Paper',
+  trainingType: 'Training Type',
+  trainingLive: 'Live Fire',
+  trainingLaser: 'Laser',
+  apiKey: 'OpenAI API Key',
+  apiKeyHint: 'For AI coaching and image detection',
+  apiKeyPlaceholder: 'sk-...',
+  shotsPerSeries: 'Shots per Series',
+  camera: 'Camera',
+  cameraHint: 'For live detection and photo capture',
+  noCamera: 'No camera found',
+  aiProvider: 'AI Provider',
+  providerOpenAI: 'OpenAI (GPT-4o)',
+  providerClaude: 'Claude (Anthropic)',
+  anthropicKey: 'Anthropic API Key',
+  anthropicKeyHint: 'For Claude AI coaching and image detection',
+  anthropicKeyPlaceholder: 'sk-ant-...',
+  saveSettings: 'Save',
+};
