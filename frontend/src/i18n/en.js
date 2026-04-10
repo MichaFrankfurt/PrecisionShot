@@ -46,8 +46,9 @@ export default {
 
   // Input Modes
   modeManual: 'Manual',
-  modeCamera: 'Camera',
-  modeUpload: 'Upload Image',
+  modeLive: 'Live',
+  modeCamera: 'Photo',
+  modeUpload: 'Upload',
 
   // Camera
   cameraStart: 'Start Camera',

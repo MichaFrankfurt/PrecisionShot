@@ -46,8 +46,9 @@ export default {
 
   // Input Modes
   modeManual: 'Вручную',
-  modeCamera: 'Камера',
-  modeUpload: 'Загрузить фото',
+  modeLive: 'Live',
+  modeCamera: 'Фото',
+  modeUpload: 'Загрузить',
 
   // Camera
   cameraStart: 'Включить камеру',

@@ -4,6 +4,7 @@ import ModeSelector from '../components/ModeSelector';
 import TargetCanvas from '../components/TargetCanvas';
 import CameraInput from '../components/CameraInput';
 import ImageUpload from '../components/ImageUpload';
+import LiveDetection from '../components/LiveDetection';
 import ShotList from '../components/ShotList';
 import AIFeedback from '../components/AIFeedback';
 import { api } from '../api';
@@ -67,6 +68,28 @@ export default function NewSession() {
     }
   }
 
+  // Live mode: shots come from frame differencing, go straight to analysis
+  async function handleLiveShotsComplete(liveShots) {
+    setShots(liveShots);
+    setLoading(true);
+    setError('');
+    setLoadingMsg(t.aiAnalyzing || 'AI analysiert...');
+    try {
+      const analysis = await api.analyze(liveShots, lang);
+      setResult(analysis);
+      await api.createSession({
+        shots: analysis.shots,
+        total_score: analysis.total_score,
+        ai_feedback: analysis.ai_feedback
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setLoadingMsg('');
+    }
+  }
+
   // Camera/Upload mode: detect shots from image AND analyze in one step
   async function handleImageAnalyze(imageBase64) {
     setLoading(true);
@@ -123,6 +146,9 @@ export default function NewSession() {
           {mode === 'manual' && (
             <TargetCanvas shots={shots} onShot={handleShot} maxShots={maxShots} />
           )}
+          {mode === 'live' && !result && (
+            <LiveDetection maxShots={maxShots} onShotsComplete={handleLiveShotsComplete} />
+          )}
           {mode === 'camera' && !result && (
             <CameraInput onAnalyze={handleImageAnalyze} loading={loading} />
           )}
@@ -131,7 +157,10 @@ export default function NewSession() {
           )}
 
           {/* Show target with detected shots after analysis */}
-          {mode !== 'manual' && shots.length > 0 && (
+          {mode !== 'manual' && mode !== 'live' && shots.length > 0 && (
+            <TargetCanvas shots={shots} onShot={() => {}} maxShots={maxShots} />
+          )}
+          {mode === 'live' && result && (
             <TargetCanvas shots={shots} onShot={() => {}} maxShots={maxShots} />
           )}
         </div>

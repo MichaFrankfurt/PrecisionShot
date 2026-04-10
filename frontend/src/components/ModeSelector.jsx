@@ -2,6 +2,7 @@ import { useI18n } from '../i18n/useI18n';
 
 const MODES = [
   { key: 'manual', icon: '🖱️', labelKey: 'modeManual' },
+  { key: 'live', icon: '🔴', labelKey: 'modeLive' },
   { key: 'camera', icon: '📷', labelKey: 'modeCamera' },
   { key: 'upload', icon: '📁', labelKey: 'modeUpload' },
 ];
