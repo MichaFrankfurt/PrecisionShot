@@ -7,8 +7,13 @@ const PROCESS_WIDTH = 640;
 const PROCESS_HEIGHT = 480;
 const DETECT_INTERVAL_MS = 200;
 
+const MIN_HEIGHT = 200;
+const MAX_HEIGHT = 500;
+const HEIGHT_STEP = 50;
+
 export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
   const { t } = useI18n();
+  const [videoHeight, setVideoHeight] = useState(280);
   const videoRef = useRef(null);
   const processCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
@@ -231,7 +236,7 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Shot counter */}
+      {/* Shot counter + Zoom */}
       {phase !== 'idle' && (
         <div className="flex items-center gap-3">
           <div className="text-sm text-gray-400">
@@ -244,13 +249,21 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
           {phase === 'stopped' && (
             <span className="text-yellow-400 text-xs">■ GESTOPPT</span>
           )}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setVideoHeight(h => Math.max(MIN_HEIGHT, h - HEIGHT_STEP))}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setVideoHeight(h => Math.max(MIN_HEIGHT, h - HEIGHT_STEP)); }}
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg transition select-none">−</button>
+            <button onClick={() => setVideoHeight(h => Math.min(MAX_HEIGHT, h + HEIGHT_STEP))}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setVideoHeight(h => Math.min(MAX_HEIGHT, h + HEIGHT_STEP)); }}
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg transition select-none">+</button>
+          </div>
         </div>
       )}
 
       {/* Video + Overlay */}
       <div className={`w-full relative rounded-xl overflow-hidden border border-highlight bg-black ${phase === 'idle' ? 'hidden' : ''}`}>
         <video ref={videoRef} autoPlay playsInline muted
-          style={{ width: '100%', height: '280px', objectFit: 'cover', display: 'block' }} />
+          style={{ width: '100%', height: `${videoHeight}px`, objectFit: 'cover', display: 'block' }} />
         <canvas ref={overlayCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
 
