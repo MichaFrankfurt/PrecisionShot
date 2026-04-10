@@ -114,11 +114,11 @@ export default function NewSession() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">{t.newSeries}</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">{t.newSeries}</h2>
 
       <ModeSelector mode={mode} onModeChange={handleModeChange} />
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         <div>
           {mode === 'manual' && (
             <TargetCanvas shots={shots} onShot={handleShot} maxShots={maxShots} />

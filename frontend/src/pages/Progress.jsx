@@ -49,11 +49,11 @@ export default function Progress() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">{t.progress}</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{t.progress}</h2>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-surface rounded-xl p-4 border border-highlight text-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="bg-surface rounded-xl p-3 sm:p-4 border border-highlight text-center">
           <p className="text-2xl font-bold text-accent">{data.avgScore?.toFixed(1)}</p>
           <p className="text-gray-500 text-xs">{t.progressAvg}</p>
         </div>

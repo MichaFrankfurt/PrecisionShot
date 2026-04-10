@@ -41,7 +41,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-primary">
       <Navbar user={user} onLogout={handleLogout} />
-      <main className="max-w-4xl mx-auto p-4">
+      <main className="max-w-4xl mx-auto px-3 py-3 sm:p-4">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/new" element={<NewSession />} />

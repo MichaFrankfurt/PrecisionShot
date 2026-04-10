@@ -16,7 +16,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">{t.history}</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{t.history}</h2>
 
       {sessions.length === 0 ? (
         <div className="text-center py-16">
@@ -31,7 +31,7 @@ export default function Dashboard() {
             <Link
               key={s.id}
               to={`/session/${s.id}`}
-              className="block bg-surface rounded-xl p-4 hover:bg-highlight/30 transition border border-highlight/20"
+              className="block bg-surface rounded-xl p-3 sm:p-4 hover:bg-highlight/30 transition border border-highlight/20"
             >
               <div className="flex justify-between items-center">
                 <div>

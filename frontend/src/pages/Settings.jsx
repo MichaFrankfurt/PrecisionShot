@@ -204,19 +204,19 @@ export default function Settings() {
   if (loading) return <p className="text-gray-400 text-center mt-12">{t.loading}</p>;
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold mb-6">{t.settings}</h2>
+    <div className="max-w-lg mx-auto px-1 sm:px-0">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{t.settings}</h2>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Distance */}
-        <div className="bg-surface rounded-xl p-5 border border-highlight">
+        <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-3">{t.distance}</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {DISTANCES.map(d => (
               <button
                 key={d}
                 onClick={() => setSettings({ ...settings, distance: d })}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition border ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition border min-w-[48px] ${
                   settings?.distance === d
                     ? 'bg-accent/10 border-accent text-white'
                     : 'bg-primary border-highlight text-gray-400 hover:border-gray-500'
@@ -229,7 +229,7 @@ export default function Settings() {
         </div>
 
         {/* Shots per Series — Number Input */}
-        <div className="bg-surface rounded-xl p-5 border border-highlight">
+        <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-3">{t.shotsPerSeries}</label>
           <div className="flex items-center gap-3">
             <button
@@ -259,7 +259,7 @@ export default function Settings() {
         </div>
 
         {/* Target Type */}
-        <div className="bg-surface rounded-xl p-5 border border-highlight">
+        <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-3">{t.targetType}</label>
           <div className="flex gap-2">
             {[
@@ -286,7 +286,7 @@ export default function Settings() {
         <CameraSelector settings={settings} onSelect={(id) => setSettings({ ...settings, camera_device_id: id })} />
 
         {/* Training Type */}
-        <div className="bg-surface rounded-xl p-5 border border-highlight">
+        <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-3">{t.trainingType}</label>
           <div className="flex gap-2">
             {[
@@ -310,7 +310,7 @@ export default function Settings() {
         </div>
 
         {/* AI Provider — Radio-Auswahl mit jeweiligem Key-Feld */}
-        <div className="bg-surface rounded-xl p-5 border border-highlight">
+        <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-4">{t.aiProvider}</label>
 
           {/* OpenAI */}
