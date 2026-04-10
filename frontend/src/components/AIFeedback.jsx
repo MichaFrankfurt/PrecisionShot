@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useI18n } from '../i18n/useI18n';
 
 const LANG_VOICES = { de: 'de-DE', en: 'en-US', ru: 'ru-RU' };
@@ -6,13 +6,49 @@ const LANG_VOICES = { de: 'de-DE', en: 'en-US', ru: 'ru-RU' };
 function SpeakButton({ text }) {
   const { lang } = useI18n();
   const [speaking, setSpeaking] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef(null);
 
-  const speak = useCallback(() => {
-    if (speaking) {
-      speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
+    speechSynthesis.cancel();
+    setSpeaking(false);
+  }, []);
+
+  const speak = useCallback(async () => {
+    if (speaking) { stop(); return; }
+
+    setLoading(true);
+
+    // Try AI TTS first (OpenAI "nova" voice — sounds natural)
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, lang })
+      });
+
+      if (res.ok && res.headers.get('content-type')?.includes('audio')) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); audioRef.current = null; };
+        audio.onerror = () => { setSpeaking(false); URL.revokeObjectURL(url); audioRef.current = null; };
+        setLoading(false);
+        setSpeaking(true);
+        audio.play();
+        return;
+      }
+    } catch {}
+
+    // Fallback: Browser TTS
+    setLoading(false);
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = LANG_VOICES[lang] || 'de-DE';
     utterance.rate = 0.95;
@@ -23,12 +59,16 @@ function SpeakButton({ text }) {
     if (match) utterance.voice = match;
     setSpeaking(true);
     speechSynthesis.speak(utterance);
-  }, [text, lang, speaking]);
+  }, [text, lang, speaking, stop]);
 
   return (
-    <button onClick={speak} title={speaking ? 'Stop' : 'Vorlesen'}
-      className={`p-2 rounded-lg transition text-lg ${speaking ? 'bg-accent/20 text-accent animate-pulse' : 'hover:bg-highlight/30 text-gray-400 hover:text-white'}`}>
-      {speaking ? '⏹' : '🔊'}
+    <button onClick={speak} disabled={loading} title={speaking ? 'Stop' : 'Vorlesen'}
+      className={`p-2 rounded-lg transition text-lg ${
+        loading ? 'text-gray-500 animate-pulse' :
+        speaking ? 'bg-accent/20 text-accent animate-pulse' :
+        'hover:bg-highlight/30 text-gray-400 hover:text-white'
+      }`}>
+      {loading ? '⏳' : speaking ? '⏹' : '🔊'}
     </button>
   );
 }

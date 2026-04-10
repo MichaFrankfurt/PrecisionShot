@@ -741,5 +741,56 @@ If no shots detected: {"shots": []}`;
     }
   });
 
+  // Text-to-Speech: AI-generated natural voice
+  const TTS_VOICES = { de: 'nova', en: 'nova', ru: 'nova' };
+
+  app.post('/api/tts', authMiddleware, async (req, res) => {
+    const { text, lang = 'de' } = req.body;
+    if (!text || text.length > 2000) {
+      return res.status(400).json({ error: 'Text required (max 2000 chars)' });
+    }
+
+    const aiConfig = getUserAIConfig(req.user.id);
+
+    try {
+      // OpenAI TTS works regardless of chosen provider (it's the best TTS available)
+      let ttsKey = null;
+      const settings = queryOne('SELECT openai_key FROM settings WHERE user_id = ?', [req.user.id]);
+      ttsKey = settings?.openai_key || process.env.OPENAI_API_KEY;
+      if (!ttsKey || ttsKey.includes('your')) {
+        throw new Error('No OpenAI key for TTS');
+      }
+
+      const { default: OpenAI } = await import('openai');
+      const openai = new OpenAI({ apiKey: ttsKey });
+
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: TTS_VOICES[lang] || 'nova',
+        input: text,
+        speed: 1.0
+      });
+
+      // Log usage (TTS: ~$0.015 per 1000 chars)
+      const charCount = text.length;
+      const costEstimate = (charCount / 1000) * 0.015;
+      try {
+        run('INSERT INTO api_usage (user_id, provider, model, endpoint, tokens_in, tokens_out, cost_estimate) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [req.user.id, 'openai', 'tts-1', 'tts', charCount, 0, costEstimate]);
+      } catch {}
+
+      // Stream audio back
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Disposition', 'inline');
+
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      res.send(buffer);
+
+    } catch (e) {
+      console.error('TTS error:', e.message);
+      res.status(500).json({ error: 'TTS nicht verfügbar. Browser-Stimme wird verwendet.' });
+    }
+  });
+
   return app;
 }
