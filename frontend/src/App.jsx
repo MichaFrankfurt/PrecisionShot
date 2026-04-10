@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import NewSession from './pages/NewSession';
 import SessionDetail from './pages/SessionDetail';
 import Settings from './pages/Settings';
+import Progress from './pages/Progress';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/new" element={<NewSession />} />
           <Route path="/session/:id" element={<SessionDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/progress" element={<Progress />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

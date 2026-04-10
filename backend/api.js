@@ -77,9 +77,41 @@ function authMiddleware(req, res, next) {
   }
 }
 
+// Ring boundaries: Ring 10 = 0-15px, Ring 9 = 15-30px, ..., Ring 1 = 135-150px
+// If shot touches a ring line (within 3px tolerance), count the higher ring
+// 10* (Innenzehner/X): center hit within 5px, not touching the 10-ring line
+const RING_WIDTH = 15; // each ring is 15px wide
+const LINE_TOLERANCE = 3; // px tolerance for "touching the line"
+const INNER_TEN_RADIUS = 5; // radius for 10* (Mouche/X)
+
 function calculateScore(x, y) {
   const distance = Math.sqrt(x * x + y * y);
-  return Math.round(Math.max(1, 10 - (distance / 150) * 9) * 10) / 10;
+
+  // Outside target
+  if (distance >= 150) return { score: 0, display: '0', innerTen: false };
+
+  // Calculate which ring (1-10, where 10 = center)
+  const ringFromCenter = Math.floor(distance / RING_WIDTH); // 0 = innermost, 9 = outermost
+  const distToNextLine = distance - (ringFromCenter * RING_WIDTH); // distance past the last ring line
+  const distToLine = RING_WIDTH - distToNextLine; // distance to the next ring line outward
+
+  let ring = 10 - ringFromCenter; // Convert to score (10 = center, 1 = outer)
+
+  // If touching the line inward (within tolerance), give the higher ring
+  if (distToNextLine <= LINE_TOLERANCE && ringFromCenter > 0) {
+    ring = 10 - ringFromCenter + 1;
+  }
+
+  ring = Math.max(1, Math.min(10, ring));
+
+  // Inner ten (10* / Mouche / X): within 5px of dead center, NOT touching the 10-ring line
+  const innerTen = distance <= INNER_TEN_RADIUS;
+
+  return {
+    score: ring,
+    display: innerTen ? '10*' : String(ring),
+    innerTen
+  };
 }
 
 export async function createApp() {
@@ -234,6 +266,117 @@ export async function createApp() {
     }
   });
 
+  // Usage statistics
+  app.get('/api/usage', authMiddleware, (req, res) => {
+    const since = req.query.since || '2024-01-01';
+    const usage = query(
+      `SELECT provider, model, endpoint,
+        SUM(tokens_in) as total_tokens_in,
+        SUM(tokens_out) as total_tokens_out,
+        SUM(cost_estimate) as total_cost,
+        COUNT(*) as request_count
+      FROM api_usage WHERE user_id = ? AND created_at >= ?
+      GROUP BY provider, endpoint
+      ORDER BY total_cost DESC`,
+      [req.user.id, since]
+    );
+    const totals = queryOne(
+      `SELECT SUM(tokens_in) as tokens_in, SUM(tokens_out) as tokens_out,
+        SUM(cost_estimate) as total_cost, COUNT(*) as requests
+      FROM api_usage WHERE user_id = ? AND created_at >= ?`,
+      [req.user.id, since]
+    );
+    res.json({ breakdown: usage, totals: totals || { tokens_in: 0, tokens_out: 0, total_cost: 0, requests: 0 } });
+  });
+
+  // Progress / Development
+  app.get('/api/progress', authMiddleware, (req, res) => {
+    const sessions = query(
+      `SELECT s.id, s.date, s.total_score, s.created_at,
+        (SELECT COUNT(*) FROM shots WHERE session_id = s.id) as shots_count
+      FROM sessions s WHERE s.user_id = ? ORDER BY s.created_at ASC`,
+      [req.user.id]
+    );
+
+    if (sessions.length < 1) {
+      return res.json({ totalSessions: 0 });
+    }
+
+    const scores = sessions.map(s => s.total_score);
+    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const bestScore = Math.max(...scores);
+
+    // Trend: compare last 5 vs previous 5
+    let trend = 0;
+    if (sessions.length >= 6) {
+      const recent5 = scores.slice(-5);
+      const prev5 = scores.slice(-10, -5);
+      if (prev5.length >= 3) {
+        const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
+        const prevAvg = prev5.reduce((a, b) => a + b, 0) / prev5.length;
+        trend = recentAvg - prevAvg;
+      }
+    }
+
+    res.json({
+      totalSessions: sessions.length,
+      avgScore,
+      bestScore,
+      trend,
+      history: sessions.slice(-30).map(s => ({
+        date: s.date,
+        total_score: s.total_score,
+        shots_count: s.shots_count
+      }))
+    });
+  });
+
+  // AI Progress Analysis
+  app.get('/api/progress/ai', authMiddleware, async (req, res) => {
+    const lang = req.query.lang || 'de';
+    const sessions = query(
+      `SELECT s.date, s.total_score, s.ai_feedback,
+        (SELECT COUNT(*) FROM shots WHERE session_id = s.id) as shots_count
+      FROM sessions s WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT 20`,
+      [req.user.id]
+    );
+
+    if (sessions.length < 3) {
+      return res.json({ summary: 'Noch nicht genug Daten. Mindestens 3 Serien nötig.' });
+    }
+
+    const aiConfig = getUserAIConfig(req.user.id);
+    if (!aiConfig.key) {
+      return res.json({ summary: 'API Key erforderlich für AI-Analyse.' });
+    }
+
+    const sessionsDesc = sessions.map(s =>
+      `${s.date}: ${s.total_score?.toFixed(1)} Punkte (${s.shots_count} Schuss)`
+    ).join('\n');
+
+    const LANG = { de: 'Deutsch', en: 'English', ru: 'Русский' };
+
+    try {
+      const summary = await callAI({
+        ...aiConfig,
+        systemPrompt: `Du bist ein erfahrener Schießtrainer der die langfristige Entwicklung eines Schützen analysiert. Schreibe einen flüssigen, natürlichen Text (4-8 Sätze) der vorgelesen werden kann. Analysiere Trends, erkenne Muster, gib konkrete Empfehlungen für das weitere Training.`,
+        userMessage: `Antworte auf ${LANG[lang] || 'Deutsch'}.
+
+Letzte ${sessions.length} Serien dieses Schützen:
+${sessionsDesc}
+
+Analysiere die Entwicklung dieses Schützen. Was sind die Trends? Wo hat er sich verbessert? Wo gibt es noch Potenzial? Was empfiehlst du als nächsten Trainings-Schwerpunkt?`,
+        maxTokens: 600,
+        temperature: 0.5,
+        userId: req.user.id,
+        endpoint: 'progress'
+      });
+      res.json({ summary });
+    } catch (e) {
+      res.json({ summary: 'Analyse konnte nicht erstellt werden: ' + e.message });
+    }
+  });
+
   // Helper: get user's AI provider config
   function getUserAIConfig(userId) {
     const settings = queryOne('SELECT ai_provider, openai_key, anthropic_key FROM settings WHERE user_id = ?', [userId]);
@@ -251,8 +394,23 @@ export async function createApp() {
     return { provider, key };
   }
 
+  // Cost per 1M tokens (USD)
+  const COSTS = {
+    'gpt-4o': { input: 2.5, output: 10 },
+    'claude-sonnet-4-20250514': { input: 3, output: 15 }
+  };
+
+  function logUsage(userId, provider, model, endpoint, tokensIn, tokensOut) {
+    const cost = COSTS[model] || { input: 3, output: 10 };
+    const costEstimate = (tokensIn / 1_000_000 * cost.input) + (tokensOut / 1_000_000 * cost.output);
+    try {
+      run('INSERT INTO api_usage (user_id, provider, model, endpoint, tokens_in, tokens_out, cost_estimate) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userId, provider, model, endpoint, tokensIn, tokensOut, costEstimate]);
+    } catch (e) { console.error('Usage log error:', e.message); }
+  }
+
   // Helper: call AI (OpenAI or Claude) with messages
-  async function callAI({ provider, key, systemPrompt, userMessage, maxTokens = 600, temperature = 0.4 }) {
+  async function callAI({ provider, key, systemPrompt, userMessage, maxTokens = 600, temperature = 0.4, userId, endpoint = 'analyze' }) {
     if (!key) throw new Error('No API key');
 
     if (provider === 'claude') {
@@ -264,6 +422,9 @@ export async function createApp() {
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }]
       });
+      if (userId && response.usage) {
+        logUsage(userId, 'claude', 'claude-sonnet-4-20250514', endpoint, response.usage.input_tokens, response.usage.output_tokens);
+      }
       return response.content[0].text;
     } else {
       const { default: OpenAI } = await import('openai');
@@ -277,12 +438,15 @@ export async function createApp() {
         max_tokens: maxTokens,
         temperature
       });
+      if (userId && response.usage) {
+        logUsage(userId, 'openai', 'gpt-4o', endpoint, response.usage.prompt_tokens, response.usage.completion_tokens);
+      }
       return response.choices[0].message.content;
     }
   }
 
   // Helper: call AI with vision (image analysis)
-  async function callAIVision({ provider, key, systemPrompt, textPrompt, imageBase64, maxTokens = 500 }) {
+  async function callAIVision({ provider, key, systemPrompt, textPrompt, imageBase64, maxTokens = 500, userId }) {
     if (!key) throw new Error('No API key');
 
     if (provider === 'claude') {
@@ -304,6 +468,9 @@ export async function createApp() {
           ]
         }]
       });
+      if (userId && response.usage) {
+        logUsage(userId, 'claude', 'claude-sonnet-4-20250514', 'vision', response.usage.input_tokens, response.usage.output_tokens);
+      }
       return response.content[0].text;
     } else {
       const { default: OpenAI } = await import('openai');
@@ -320,6 +487,9 @@ export async function createApp() {
         max_tokens: maxTokens,
         temperature: 0.1
       });
+      if (userId && response.usage) {
+        logUsage(userId, 'openai', 'gpt-4o', 'vision', response.usage.prompt_tokens, response.usage.completion_tokens);
+      }
       return response.choices[0].message.content;
     }
   }
@@ -423,11 +593,16 @@ Koordinatensystem: Zentrum = (0,0), Bereich -150 bis +150, positiv x = rechts, p
       return res.status(400).json({ error: `Invalid shot count: ${shots?.length || 0}` });
     }
 
-    const scoredShots = shots.map((s, i) => ({
-      ...s,
-      shot_number: i + 1,
-      score: calculateScore(s.x, s.y)
-    }));
+    const scoredShots = shots.map((s, i) => {
+      const result = calculateScore(s.x, s.y);
+      return {
+        ...s,
+        shot_number: i + 1,
+        score: result.score,
+        display: result.display,
+        innerTen: result.innerTen
+      };
+    });
     const totalScore = scoredShots.reduce((sum, s) => sum + s.score, 0);
     const numShots = scoredShots.length;
 
@@ -458,7 +633,8 @@ ${shotsDesc}
 Bitte analysiere diese Serie.`;
 
       feedbackText = await callAI({
-        ...aiConfig, systemPrompt: SYSTEM_PROMPT, userMessage, maxTokens: 800, temperature: 0.5
+        ...aiConfig, systemPrompt: SYSTEM_PROMPT, userMessage, maxTokens: 800, temperature: 0.5,
+        userId: req.user.id, endpoint: 'analyze'
       });
 
       // Clean up any markdown formatting
@@ -486,26 +662,53 @@ Bitte analysiere diese Serie.`;
     try {
       const aiConfig = getUserAIConfig(req.user.id);
 
-      const visionSystemPrompt = `You are a shooting target analysis system. Analyze the image of a shooting target and detect bullet holes / impact points.
+      const ctx = getUserContext(req.user.id);
+      const visionSystemPrompt = `You are a professional shooting target analysis system with expertise in competitive pistol shooting targets.
 
-Return ONLY valid JSON in this exact format (no markdown, no explanation):
-{"shots": [{"x": 0, "y": 0}, {"x": 10, "y": -5}]}
+Your task: Detect ALL bullet holes, laser hits, or impact points on the shooting target in the image.
 
-Coordinate system:
-- Center of target = (0, 0)
-- Range: -150 to +150 for both x and y
-- Positive x = right, positive y = down
-- Scale based on the target rings visible in the image
+CRITICAL RULES:
+1. Look carefully at the ENTIRE target surface for holes, tears, marks, or dark spots
+2. Bullet holes appear as small dark circles or tears in the paper/surface
+3. Laser marks appear as small dots or burns
+4. Do NOT confuse printing artifacts, dirt, or shadows with bullet holes
+5. Count each distinct hole/mark separately
+6. Pay attention to holes that might overlap or be close together
 
-If you cannot detect any shots, return: {"shots": []}
-If the image is not a shooting target, return: {"shots": [], "error": "Not a shooting target"}`;
+Target information:
+- Type: ${ctx.target_type === 'monitor' ? 'Electronic target (Meyton or similar)' : 'Paper target'}
+- Training: ${ctx.training_type === 'live' ? 'Live ammunition (look for actual holes/tears)' : 'Laser training (look for laser marks/dots)'}
+- Standard pistol target with 10 concentric rings
+- Ring 10 (center/bullseye) is the smallest circle
+- Ring 1 is the outermost scoring ring
+
+Coordinate system (IMPORTANT):
+- Center of the bullseye (ring 10) = (0, 0)
+- Range: -150 to +150 for both x and y axes
+- The TOTAL target diameter spans 300 units (-150 to +150)
+- Each ring is approximately 15 units wide
+- Positive x = RIGHT of center
+- Positive y = BELOW center (down)
+- Negative x = LEFT of center
+- Negative y = ABOVE center (up)
+
+Calibration guide:
+- A hole at the edge of ring 10 (bullseye border): approximately x,y within ±15 of center
+- A hole at ring 5: approximately 75-90 units from center
+- A hole at ring 1 (outer edge): approximately 135-150 units from center
+
+Return ONLY valid JSON (no markdown, no explanation, no code blocks):
+{"shots": [{"x": 0, "y": -5}, {"x": 25, "y": 10}]}
+
+If no shots detected: {"shots": []}`;
 
       const content = await callAIVision({
         ...aiConfig,
         systemPrompt: visionSystemPrompt,
-        textPrompt: 'Detect all bullet holes / impact points on this shooting target. Return their coordinates as JSON.',
+        textPrompt: `Carefully examine this shooting target image. Detect and locate ALL bullet holes or impact marks. Return their precise coordinates as JSON. The target has ${ctx.target_type === 'monitor' ? 'electronic scoring rings' : 'printed paper rings'} and was used for ${ctx.training_type === 'live' ? 'live fire training' : 'laser training'}.`,
         imageBase64: image,
-        maxTokens: 500
+        maxTokens: 600,
+        userId: req.user.id
       });
 
       const jsonMatch = content.trim().match(/\{[\s\S]*\}/);

@@ -28,6 +28,19 @@ CREATE TABLE IF NOT EXISTS shots (
   FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 
+CREATE TABLE IF NOT EXISTS api_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  tokens_in INTEGER DEFAULT 0,
+  tokens_out INTEGER DEFAULT 0,
+  cost_estimate REAL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   user_id INTEGER PRIMARY KEY,
   distance INTEGER DEFAULT 10,

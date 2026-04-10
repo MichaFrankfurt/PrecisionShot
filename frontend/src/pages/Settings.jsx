@@ -371,7 +371,75 @@ export default function Settings() {
         {saveError && (
           <p className="text-accent text-sm text-center">{saveError}</p>
         )}
+
+        {/* API Usage */}
+        <UsageStats />
       </div>
+    </div>
+  );
+}
+
+function UsageStats() {
+  const { t } = useI18n();
+  const [usage, setUsage] = useState(null);
+  const [since, setSince] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(`/api/usage?since=${since}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(setUsage)
+        .catch(() => {});
+    }
+  }, [since]);
+
+  if (!usage) return null;
+
+  return (
+    <div className="bg-surface rounded-xl p-5 border border-highlight">
+      <div className="flex items-center justify-between mb-3">
+        <label className="text-sm font-medium text-gray-300">{t.usage}</label>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs">{t.usageSince}</span>
+          <input type="date" value={since} onChange={e => setSince(e.target.value)}
+            className="bg-primary border border-highlight rounded px-2 py-1 text-xs text-gray-300 focus:border-accent focus:outline-none" />
+        </div>
+      </div>
+
+      {usage.totals.requests === 0 ? (
+        <p className="text-gray-500 text-sm">{t.usageNoData}</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-primary rounded-lg p-3 text-center">
+              <p className="text-accent text-lg font-bold">${usage.totals.total_cost?.toFixed(4)}</p>
+              <p className="text-gray-500 text-xs">{t.usageCost}</p>
+            </div>
+            <div className="bg-primary rounded-lg p-3 text-center">
+              <p className="text-white text-lg font-bold">{usage.totals.requests}</p>
+              <p className="text-gray-500 text-xs">{t.usageRequests}</p>
+            </div>
+            <div className="bg-primary rounded-lg p-3 text-center">
+              <p className="text-white text-lg font-bold">{((usage.totals.tokens_in || 0) + (usage.totals.tokens_out || 0)).toLocaleString()}</p>
+              <p className="text-gray-500 text-xs">{t.usageTokens}</p>
+            </div>
+          </div>
+          {usage.breakdown?.length > 0 && (
+            <div className="text-xs text-gray-500 space-y-1">
+              {usage.breakdown.map((b, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{b.provider} / {b.endpoint}</span>
+                  <span>{b.request_count}x — ${b.total_cost?.toFixed(4)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

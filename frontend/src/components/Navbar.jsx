@@ -16,6 +16,9 @@ export default function Navbar({ user, onLogout }) {
           <Link to="/new" className="bg-accent hover:bg-accent/80 px-4 py-2 rounded-lg text-sm font-heading font-semibold tracking-wide transition">
             {t.newSession}
           </Link>
+          <Link to="/progress" className="text-gray-400 hover:text-white transition text-sm" title={t.progress}>
+            📊
+          </Link>
           <Link to="/settings" className="text-gray-400 hover:text-white transition" title={t.settings}>
             ⚙️
           </Link>

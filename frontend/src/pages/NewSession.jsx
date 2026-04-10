@@ -15,7 +15,9 @@ export default function NewSession() {
   const [shots, setShots] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
   const [maxShots, setMaxShots] = useState(5);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,36 +36,77 @@ export default function NewSession() {
     }
   }
 
-  function handleShotsDetected(detectedShots) {
-    setShots(detectedShots.slice(0, maxShots));
-  }
-
   function handleReset() {
     setShots([]);
     setResult(null);
+    setError('');
+    setLoadingMsg('');
   }
 
   function handleModeChange(newMode) {
     setMode(newMode);
-    setShots([]);
-    setResult(null);
+    handleReset();
   }
 
+  // Manual mode: analyze shots that were clicked on canvas
   async function handleAnalyze() {
     setLoading(true);
+    setError('');
     try {
       const analysis = await api.analyze(shots, lang);
       setResult(analysis);
-
       await api.createSession({
         shots: analysis.shots,
         total_score: analysis.total_score,
         ai_feedback: analysis.ai_feedback
       });
     } catch (err) {
-      console.error(err);
+      setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Camera/Upload mode: detect shots from image AND analyze in one step
+  async function handleImageAnalyze(imageBase64) {
+    setLoading(true);
+    setError('');
+    setLoadingMsg(t.detecting || 'Erkenne Treffer...');
+
+    try {
+      // Step 1: Detect shots from image
+      const token = localStorage.getItem('token');
+      const detectRes = await fetch('/api/vision/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ image: imageBase64 })
+      });
+      if (!detectRes.ok) {
+        const err = await detectRes.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${detectRes.status}`);
+      }
+      const detected = await detectRes.json();
+      if (!detected.shots?.length) {
+        throw new Error(t.noShotsDetected || 'Keine Treffer erkannt');
+      }
+
+      const detectedShots = detected.shots.slice(0, maxShots);
+      setShots(detectedShots);
+      setLoadingMsg(t.aiAnalyzing || 'AI analysiert...');
+
+      // Step 2: Analyze the detected shots
+      const analysis = await api.analyze(detectedShots, lang);
+      setResult(analysis);
+      await api.createSession({
+        shots: analysis.shots,
+        total_score: analysis.total_score,
+        ai_feedback: analysis.ai_feedback
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setLoadingMsg('');
     }
   }
 
@@ -80,15 +123,15 @@ export default function NewSession() {
           {mode === 'manual' && (
             <TargetCanvas shots={shots} onShot={handleShot} maxShots={maxShots} />
           )}
-          {mode === 'camera' && !shotsReady && !result && (
-            <CameraInput onShotsDetected={handleShotsDetected} />
+          {mode === 'camera' && !result && (
+            <CameraInput onAnalyze={handleImageAnalyze} loading={loading} />
           )}
-          {mode === 'upload' && !shotsReady && !result && (
-            <ImageUpload onShotsDetected={handleShotsDetected} />
+          {mode === 'upload' && !result && (
+            <ImageUpload onAnalyze={handleImageAnalyze} loading={loading} />
           )}
 
-          {/* Show target with detected shots for camera/upload modes */}
-          {mode !== 'manual' && shotsReady && (
+          {/* Show target with detected shots after analysis */}
+          {mode !== 'manual' && shots.length > 0 && (
             <TargetCanvas shots={shots} onShot={() => {}} maxShots={maxShots} />
           )}
         </div>
@@ -96,7 +139,8 @@ export default function NewSession() {
         <div className="space-y-4">
           <ShotList shots={result?.shots || shots.map((s, i) => ({ ...s, shot_number: i + 1 }))} />
 
-          {shotsReady && !result && (
+          {/* Manual mode: analyze button */}
+          {mode === 'manual' && shotsReady && !result && (
             <button
               onClick={handleAnalyze}
               disabled={loading}
@@ -106,10 +150,17 @@ export default function NewSession() {
             </button>
           )}
 
+          {/* Loading indicator */}
+          {loading && loadingMsg && (
+            <p className="text-accent text-sm text-center animate-pulse">{loadingMsg}</p>
+          )}
+
+          {error && <p className="text-accent text-sm text-center">{error}</p>}
+
           <AIFeedback
             feedback={result?.ai_feedback}
             totalScore={result?.total_score}
-            loading={loading}
+            loading={loading && !loadingMsg}
             maxScore={maxShots * 10}
           />
 
@@ -130,7 +181,7 @@ export default function NewSession() {
             </div>
           )}
 
-          {shots.length > 0 && !result && (
+          {shots.length > 0 && !result && !loading && (
             <button
               onClick={handleReset}
               className="w-full bg-surface border border-highlight hover:bg-highlight/30 py-2 rounded-lg text-sm text-gray-400 transition"
