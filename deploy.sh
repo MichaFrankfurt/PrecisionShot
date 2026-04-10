@@ -6,15 +6,20 @@ APP_DIR="/opt/precisionshot"
 
 echo "=== PrecisionShot.ai Deployment ==="
 
-# Step 1: Push latest code to GitHub
-echo "1. Pushing to GitHub..."
+# Step 1: Build frontend locally
+echo "1. Building frontend..."
+cd ~/Desktop/PrecisionShot/frontend
+npm run build
+
+# Step 2: Push to GitHub
+echo "2. Pushing to GitHub..."
 cd ~/Desktop/PrecisionShot
 git add -A
 git commit -m "Deploy $(date +%Y-%m-%d_%H:%M)" --allow-empty
 git push origin main
 
-# Step 2: Deploy on server
-echo "2. Deploying on server..."
+# Step 3: Deploy on server
+echo "3. Deploying on server..."
 ssh $SERVER << 'REMOTE'
 set -e
 APP_DIR="/opt/precisionshot"
@@ -28,46 +33,90 @@ else
   cd $APP_DIR
 fi
 
+# Install backend dependencies
+cd $APP_DIR/backend
+npm ci --production
+
 # Create .env if not exists
 if [ ! -f .env ]; then
-  echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
+  cat > .env << 'ENV'
+PORT=3002
+JWT_SECRET=$(openssl rand -hex 32)
+NODE_ENV=production
+ENV
   echo "Created .env"
 fi
 
-# First deployment: use init config (no SSL), get cert, then switch to SSL config
-if [ ! -f "$APP_DIR/.ssl-done" ]; then
-  echo "First deployment — starting without SSL..."
-  cp nginx/nginx-init.conf nginx/nginx-active.conf
+# Create systemd service
+cat > /etc/systemd/system/precisionshot.service << 'SERVICE'
+[Unit]
+Description=PrecisionShot.ai Backend
+After=network.target
 
-  # Temporarily use init config
-  sed -i 's|./nginx/nginx.conf|./nginx/nginx-active.conf|' docker-compose.prod.yml 2>/dev/null || true
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/precisionshot/backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
 
-  docker compose -f docker-compose.prod.yml build --no-cache
-  docker compose -f docker-compose.prod.yml up -d
+[Install]
+WantedBy=multi-user.target
+SERVICE
 
-  echo "Waiting for services..."
-  sleep 10
+systemctl daemon-reload
+systemctl enable precisionshot
+systemctl restart precisionshot
 
+echo "Backend started on port 3002"
+
+# Create nginx config
+cat > /etc/nginx/sites-available/precisionshot << 'NGINX'
+server {
+    server_name precisionshot.ai www.precisionshot.ai;
+
+    root /opt/precisionshot/frontend/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        client_max_body_size 25M;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    listen 80;
+}
+NGINX
+
+# Enable site
+ln -sf /etc/nginx/sites-available/precisionshot /etc/nginx/sites-enabled/precisionshot
+nginx -t && systemctl reload nginx
+
+echo "Nginx configured"
+
+# SSL with Certbot (first time only)
+if [ ! -d "/etc/letsencrypt/live/precisionshot.ai" ]; then
   echo "Requesting SSL certificate..."
-  docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-    --webroot --webroot-path=/var/www/certbot \
-    --email mail@michaelrubin.de --agree-tos --no-eff-email \
-    -d precisionshot.ai -d www.precisionshot.ai
-
-  # Switch to SSL config
-  cp nginx/nginx.conf nginx/nginx-active.conf
-  docker compose -f docker-compose.prod.yml restart nginx
-  touch "$APP_DIR/.ssl-done"
+  certbot --nginx -d precisionshot.ai -d www.precisionshot.ai --non-interactive --agree-tos -m mail@michaelrubin.de
   echo "SSL configured!"
-else
-  echo "Updating deployment..."
-  docker compose -f docker-compose.prod.yml build --no-cache
-  docker compose -f docker-compose.prod.yml up -d
 fi
 
 echo ""
 echo "=== Deployment complete! ==="
-docker compose -f docker-compose.prod.yml ps
+systemctl status precisionshot --no-pager
 REMOTE
 
 echo ""
