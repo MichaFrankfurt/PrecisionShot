@@ -160,6 +160,8 @@ export default function NewSession() {
           <AIFeedback
             feedback={result?.ai_feedback}
             totalScore={result?.total_score}
+            avgScore={result?.avg_score}
+            shotsCount={result?.shots_count || result?.shots?.length}
             loading={loading && !loadingMsg}
             maxScore={maxShots * 10}
           />

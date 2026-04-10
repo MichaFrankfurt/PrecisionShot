@@ -54,12 +54,12 @@ export default function Progress() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
         <div className="bg-surface rounded-xl p-3 sm:p-4 border border-highlight text-center">
-          <p className="text-2xl font-bold text-accent">{data.avgScore?.toFixed(1)}</p>
-          <p className="text-gray-500 text-xs">{t.progressAvg}</p>
+          <p className="text-2xl font-bold text-accent">{data.avgScorePerShot?.toFixed(1)}</p>
+          <p className="text-gray-500 text-xs">{t.progressAvg} Ø/10</p>
         </div>
-        <div className="bg-surface rounded-xl p-4 border border-highlight text-center">
-          <p className="text-2xl font-bold text-white">{data.bestScore?.toFixed(1)}</p>
-          <p className="text-gray-500 text-xs">{t.progressBest}</p>
+        <div className="bg-surface rounded-xl p-3 sm:p-4 border border-highlight text-center">
+          <p className="text-2xl font-bold text-white">{data.bestAvgPerShot?.toFixed(1)}</p>
+          <p className="text-gray-500 text-xs">{t.progressBest} Ø/10</p>
         </div>
         <div className="bg-surface rounded-xl p-4 border border-highlight text-center">
           <p className="text-2xl font-bold text-white">{data.totalSessions}</p>
@@ -81,9 +81,10 @@ export default function Progress() {
         <h3 className="text-sm font-medium text-gray-300 mb-4">Score-Verlauf (letzte {data.history?.length} Serien)</h3>
         <div className="flex items-end gap-1" style={{ height: 120 }}>
           {data.history?.map((s, i) => {
-            const pct = (s.total_score / (s.shots_count * 10 || 50)) * 100;
+            const avg = s.shots_count > 0 ? s.total_score / s.shots_count : 0;
+            const pct = (avg / 10) * 100;
             return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${s.date}: ${s.total_score?.toFixed(1)}`}>
+              <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${s.date}: ${avg.toFixed(1)} Ø/10 (${s.shots_count} Schuss)`}>
                 <div
                   className="w-full rounded-t transition-all"
                   style={{

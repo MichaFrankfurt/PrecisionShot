@@ -236,7 +236,14 @@ export async function createApp() {
 
   // Sessions (protected)
   app.get('/api/sessions', authMiddleware, (req, res) => {
-    const sessions = query('SELECT * FROM sessions WHERE user_id = ? ORDER BY created_at DESC', [req.user.id]);
+    const sessions = query(
+      `SELECT s.*, (SELECT COUNT(*) FROM shots WHERE session_id = s.id) as shots_count
+       FROM sessions s WHERE s.user_id = ? ORDER BY s.created_at DESC`,
+      [req.user.id]
+    ).map(s => ({
+      ...s,
+      avg_score: s.shots_count > 0 ? Math.round((s.total_score / s.shots_count) * 10) / 10 : 0
+    }));
     res.json(sessions);
   });
 
@@ -302,15 +309,16 @@ export async function createApp() {
       return res.json({ totalSessions: 0 });
     }
 
-    const scores = sessions.map(s => s.total_score);
-    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const bestScore = Math.max(...scores);
+    // Normalize: avg score per shot (0-10 scale) — comparable across different series lengths
+    const avgPerShot = sessions.map(s => s.shots_count > 0 ? s.total_score / s.shots_count : 0);
+    const avgScorePerShot = avgPerShot.reduce((a, b) => a + b, 0) / avgPerShot.length;
+    const bestAvgPerShot = Math.max(...avgPerShot);
 
-    // Trend: compare last 5 vs previous 5
+    // Trend: compare avg-per-shot of last 5 vs previous 5
     let trend = 0;
     if (sessions.length >= 6) {
-      const recent5 = scores.slice(-5);
-      const prev5 = scores.slice(-10, -5);
+      const recent5 = avgPerShot.slice(-5);
+      const prev5 = avgPerShot.slice(-10, -5);
       if (prev5.length >= 3) {
         const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
         const prevAvg = prev5.reduce((a, b) => a + b, 0) / prev5.length;
@@ -320,8 +328,8 @@ export async function createApp() {
 
     res.json({
       totalSessions: sessions.length,
-      avgScore,
-      bestScore,
+      avgScorePerShot,
+      bestAvgPerShot,
       trend,
       history: sessions.slice(-30).map(s => ({
         date: s.date,
@@ -527,29 +535,36 @@ Analysiere die Entwicklung dieses Schützen. Was sind die Trends? Wo hat er sich
 
   // Production System Prompt
   // Production Coach Prompt — fluent text output for TTS
-  const SYSTEM_PROMPT = `Du bist PrecisionShot Coach — ein erfahrener, leidenschaftlicher Schießtrainer für Präzisionspistole. Du stehst direkt neben dem Schützen am Stand und sprichst ihn persönlich an.
+  const SYSTEM_PROMPT = `Du bist PrecisionShot Coach — ein erfahrener, leidenschaftlicher Schießtrainer für Präzisionspistole.
 
-Deine Aufgabe: Nach jeder Serie gibst du eine lebendige, menschliche Rückmeldung. Der Text wird direkt über Kopfhörer vorgelesen — schreibe so, wie ein echter Coach redet. Keine Roboter-Sprache, sondern Persönlichkeit.
+Deine Rückmeldung hat IMMER genau 3 Abschnitte, getrennt durch die Zeile "---" (drei Bindestriche allein auf einer Zeile):
 
-DEIN STIL:
-- Du bist ehrlich, aber aufbauend. Auch bei Fehlern findest du etwas Positives.
-- Du sprichst den Schützen direkt an: "Du", "Deine Gruppe", "Ich sehe bei dir..."
-- Du verwendest bildhafte Sprache: "Die Gruppe wandert nach links unten — das ist klassisch, wenn der Abzugsfinger den Griff mitzieht statt gerade durchzudrücken."
-- Du erklärst das WARUM kurz: Biomechanik, Muskelspannung, Timing — damit der Schütze versteht, nicht nur ausführt.
-- Wenn es gut läuft, feiere das! "Starke Serie! Die Gruppe sitzt sauber im Zentrum."
-- Wenn es schlecht läuft, bleib ruhig und konstruktiv: "Kein Drama, das passiert jedem. Ich sehe was los ist..."
-- Beende IMMER mit einer konkreten Aufgabe für die nächste Serie — nur EINE Sache, klar formuliert.
-- Mach die Aufgabe greifbar: "Nächste Serie: Bevor du den Abzug anfasst, atme einmal komplett aus und halte. Dann erst Druckpunkt suchen."
+ABSCHNITT 1 — STICHWÖRTER + ANALYSE:
+Beginne mit 2-3 Stichwörtern die das Hauptproblem beschreiben (z.B. "Links-Tendenz | Abzugsfehler | Gute Gruppierung").
+Dann 2-3 Sätze: Was siehst du im Trefferbild? Wo liegt die Gruppe? Streuung? Ausreißer?
+Erkläre das WARUM — Biomechanik, Muskelspannung, Timing.
 
-AUFBAU (als ein flüssiger Text, KEINE Aufzählungszeichen, KEINE Überschriften, KEINE Nummerierung):
-1. Was du siehst (Trefferbild, Gruppe, Streuung, Ausreißer)
-2. Warum das so ist (Ursache: Abzug, Atmung, Griff, Rhythmus, Ermüdung)
-3. Was sich ändern muss (konkrete Korrektur)
-4. Aufgabe für die nächste Serie
+---
 
-LÄNGE: 5-10 Sätze. Genug für eine vollständige Rückmeldung, kurz genug dass man zuhört.
+ABSCHNITT 2 — DIAGNOSE:
+2-3 Sätze Vertiefung. Was genau passiert technisch? Bildhafte Sprache verwenden.
+"Die Gruppe wandert nach links unten — klassisch wenn der Zeigefinger den Griff mitzieht statt gerade durchzudrücken."
 
-VERBOTEN: JSON, Aufzählungszeichen, Überschriften, technische Formatierung, Markdown. Nur fließender Text.
+---
+
+ABSCHNITT 3 — NÄCHSTE SERIE:
+Konkrete Aufgabe für die nächste Serie. NUR EINE Sache.
+Greifbar formulieren: "Bevor du den Abzug anfasst, atme komplett aus und halte. Dann erst Druckpunkt suchen und gerade durchziehen."
+Wenn es gut lief, motivieren: "Starke Serie! Halte genau diesen Rhythmus."
+
+STIL:
+- Persönlich: "Du", "Deine Gruppe", "Ich sehe bei dir..."
+- Ehrlich aber aufbauend — auch bei Fehlern etwas Positives finden
+- Lebendig und menschlich, wie ein Trainer der neben dir steht
+- Der Text wird vorgelesen — natürlich schreiben
+
+VERBOTEN: JSON, Markdown, Aufzählungszeichen, Überschriften, technische Formatierung.
+Nur fließenden Text mit "---" als einzigem Trennzeichen zwischen den 3 Abschnitten.
 
 Koordinatensystem: Zentrum = (0,0), Bereich -150 bis +150, positiv x = rechts, positiv y = unten.`;
 
@@ -647,9 +662,13 @@ Bitte analysiere diese Serie.`;
       feedbackText = buildFallbackText(scoredShots, totalScore, lang, numShots);
     }
 
+    const avgScore = numShots > 0 ? totalScore / numShots : 0;
+
     res.json({
       shots: scoredShots,
       total_score: totalScore,
+      avg_score: Math.round(avgScore * 10) / 10,
+      shots_count: numShots,
       ai_feedback: feedbackText
     });
   });

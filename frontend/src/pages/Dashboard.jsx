@@ -39,8 +39,8 @@ export default function Dashboard() {
                   <p className="text-gray-400 text-sm">{s.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-accent">{s.total_score?.toFixed(1)}</p>
-                  <p className="text-gray-500 text-xs">{t.of50}</p>
+                  <p className="text-2xl font-bold text-accent">{s.avg_score?.toFixed(1) || (s.total_score / (s.shots_count || 5)).toFixed(1)}</p>
+                  <p className="text-gray-500 text-xs">Ø/10 ({s.shots_count || '?'} {t.shots})</p>
                 </div>
               </div>
               {s.ai_feedback && (
