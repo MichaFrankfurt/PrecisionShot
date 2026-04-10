@@ -1,111 +1,169 @@
 /**
- * Frame differencing for laser shot detection.
- * Compares current frame against reference to find new bright spots (laser hits).
+ * Laser dot detection using brightness thresholding + color validation.
+ * Based on ShootOFF / python-laser-tracker approach.
+ *
+ * Key insight: laser dots are ALWAYS the brightest pixels in the frame.
+ * No reference frame needed — just find the brightest cluster.
  */
 
 const DEFAULT_OPTIONS = {
-  threshold: 150,       // Brightness difference threshold
-  minBlobSize: 3,       // Minimum blob area in pixels
-  maxBlobSize: 200,     // Maximum blob area in pixels
-  dedupeRadius: 20,     // Minimum distance from existing shots (pixels)
-  laserColor: 'red',    // 'red' or 'green'
+  brightnessThreshold: 200,  // min brightness (max of R,G,B) to consider
+  coreThreshold: 240,        // brightness for "laser core" (nearly white)
+  minClusterSize: 3,         // min pixels in a cluster to count as laser
+  maxClusterSize: 400,       // max pixels (reject large bright areas like lamps)
+  clusterRadius: 20,         // max distance between pixels in same cluster
+  dedupeRadius: 40,          // min distance from existing shots
+  laserColor: 'red',         // 'red' or 'green'
 };
 
 /**
- * Detect new laser shots by comparing two frames.
- * @param {Uint8ClampedArray} refData - Reference frame pixel data (RGBA)
- * @param {Uint8ClampedArray} curData - Current frame pixel data (RGBA)
+ * Detect laser dot in current frame (no reference frame needed).
+ * @param {Uint8ClampedArray} pixelData - Current frame RGBA pixel data
  * @param {number} width - Frame width
  * @param {number} height - Frame height
  * @param {Array<{px: number, py: number}>} existingShots - Already detected shots
  * @param {object} options - Detection options
  * @returns {{newShots: Array<{px: number, py: number, brightness: number}>}}
  */
-export function detectNewShots(refData, curData, width, height, existingShots = [], options = {}) {
+export function detectLaserShot(pixelData, width, height, existingShots = [], options = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const totalPixels = width * height;
+  const candidates = [];
 
-  // Step 1: Compute per-pixel brightness difference
-  const diffMap = new Uint8Array(totalPixels);
-  const channelOffset = opts.laserColor === 'green' ? 1 : 0; // R=0, G=1
+  // Stage 1: Find bright pixels that match laser color
+  // Use Uint32Array view for faster iteration
+  const buf32 = new Uint32Array(pixelData.buffer);
 
-  for (let i = 0; i < totalPixels; i++) {
-    const idx = i * 4;
-    const refVal = refData[idx + channelOffset];
-    const curVal = curData[idx + channelOffset];
-    const diff = curVal - refVal;
+  for (let i = 0; i < buf32.length; i++) {
+    const pixel = buf32[i];
+    const r = pixel & 0xFF;
+    const g = (pixel >> 8) & 0xFF;
+    const b = (pixel >> 16) & 0xFF;
 
-    // Also check saturation: laser should be dominant in its channel
+    const brightness = Math.max(r, g, b);
+    if (brightness < opts.brightnessThreshold) continue;
+
+    let isLaser = false;
+
     if (opts.laserColor === 'red') {
-      const curG = curData[idx + 1];
-      const curB = curData[idx + 2];
-      // Red laser: R should be significantly higher than G and B
-      if (diff > opts.threshold && curVal > curG + 50 && curVal > curB + 50) {
-        diffMap[i] = diff;
-      }
+      // Laser core: nearly white, very bright
+      const isCore = brightness >= opts.coreThreshold;
+      // Red halo: R dominant over G and B
+      const isRedHalo = r > 200 && r > g * 1.4 && r > b * 1.4;
+      isLaser = isCore || isRedHalo;
     } else {
-      const curR = curData[idx];
-      const curB = curData[idx + 2];
-      if (diff > opts.threshold && curData[idx + 1] > curR + 50 && curData[idx + 1] > curB + 50) {
-        diffMap[i] = diff;
-      }
+      // Green laser
+      const isCore = brightness >= opts.coreThreshold;
+      const isGreenHalo = g > 200 && g > r * 1.4 && g > b * 1.4;
+      isLaser = isCore || isGreenHalo;
+    }
+
+    if (isLaser) {
+      const x = i % width;
+      const y = Math.floor(i / width);
+      candidates.push({ x, y, brightness });
     }
   }
 
-  // Step 2: Simple blob detection via flood fill
-  const visited = new Uint8Array(totalPixels);
-  const blobs = [];
+  if (candidates.length === 0) return { newShots: [] };
 
-  for (let i = 0; i < totalPixels; i++) {
-    if (diffMap[i] > 0 && !visited[i]) {
-      // Flood fill this blob
-      const blob = { pixels: [], maxBrightness: 0, sumX: 0, sumY: 0 };
-      const stack = [i];
+  // Stage 2: Cluster nearby pixels
+  const clusters = clusterPixels(candidates, opts.clusterRadius, opts.minClusterSize, opts.maxClusterSize);
 
-      while (stack.length > 0) {
-        const p = stack.pop();
-        if (p < 0 || p >= totalPixels || visited[p] || diffMap[p] === 0) continue;
-        visited[p] = 1;
+  if (clusters.length === 0) return { newShots: [] };
 
-        const px = p % width;
-        const py = Math.floor(p / width);
-        blob.pixels.push(p);
-        blob.sumX += px;
-        blob.sumY += py;
-        if (diffMap[p] > blob.maxBrightness) blob.maxBrightness = diffMap[p];
-
-        // 4-connected neighbors
-        if (px > 0) stack.push(p - 1);
-        if (px < width - 1) stack.push(p + 1);
-        if (py > 0) stack.push(p - width);
-        if (py < height - 1) stack.push(p + width);
-      }
-
-      if (blob.pixels.length >= opts.minBlobSize && blob.pixels.length <= opts.maxBlobSize) {
-        blob.cx = blob.sumX / blob.pixels.length;
-        blob.cy = blob.sumY / blob.pixels.length;
-        blobs.push(blob);
-      }
-    }
-  }
-
-  // Step 3: Deduplicate against existing shots
+  // Stage 3: Deduplicate against existing shots
   const newShots = [];
-  for (const blob of blobs) {
+  for (const cluster of clusters) {
     const tooClose = existingShots.some(s => {
-      const dx = blob.cx - s.px;
-      const dy = blob.cy - s.py;
+      const dx = cluster.cx - s.px;
+      const dy = cluster.cy - s.py;
       return Math.sqrt(dx * dx + dy * dy) < opts.dedupeRadius;
     });
 
     if (!tooClose) {
       newShots.push({
-        px: Math.round(blob.cx),
-        py: Math.round(blob.cy),
-        brightness: blob.maxBrightness
+        px: Math.round(cluster.cx),
+        py: Math.round(cluster.cy),
+        brightness: cluster.maxBrightness,
+        size: cluster.size
       });
     }
   }
 
   return { newShots };
+}
+
+/**
+ * Optional: detect laser with reference frame comparison (hybrid mode).
+ * First checks brightness, then validates against reference.
+ */
+export function detectLaserShotWithReference(pixelData, refData, width, height, existingShots = [], options = {}) {
+  // First: find candidates via brightness
+  const result = detectLaserShot(pixelData, width, height, existingShots, options);
+
+  if (result.newShots.length === 0 || !refData) return result;
+
+  // Second: validate candidates — they should NOT be bright in reference frame
+  const validatedShots = result.newShots.filter(shot => {
+    const idx = (shot.py * width + shot.px) * 4;
+    const refBrightness = Math.max(refData[idx], refData[idx + 1], refData[idx + 2]);
+    // If this pixel was already bright in reference → it's a lamp/reflection, not a new laser
+    return refBrightness < 180;
+  });
+
+  return { newShots: validatedShots };
+}
+
+function clusterPixels(candidates, maxRadius, minSize, maxSize) {
+  const clusters = [];
+  const visited = new Set();
+
+  // Sort by brightness descending — process brightest first
+  candidates.sort((a, b) => b.brightness - a.brightness);
+
+  for (let i = 0; i < candidates.length; i++) {
+    if (visited.has(i)) continue;
+
+    const cluster = { pixels: [candidates[i]], sumX: candidates[i].x, sumY: candidates[i].y, maxBrightness: candidates[i].brightness };
+    visited.add(i);
+
+    for (let j = i + 1; j < candidates.length; j++) {
+      if (visited.has(j)) continue;
+
+      // Check distance to any pixel in cluster (single-linkage)
+      let close = false;
+      for (const p of cluster.pixels) {
+        const dx = candidates[j].x - p.x;
+        const dy = candidates[j].y - p.y;
+        if (dx * dx + dy * dy <= maxRadius * maxRadius) {
+          close = true;
+          break;
+        }
+      }
+
+      if (close) {
+        cluster.pixels.push(candidates[j]);
+        cluster.sumX += candidates[j].x;
+        cluster.sumY += candidates[j].y;
+        if (candidates[j].brightness > cluster.maxBrightness) {
+          cluster.maxBrightness = candidates[j].brightness;
+        }
+        visited.add(j);
+      }
+    }
+
+    const size = cluster.pixels.length;
+    if (size >= minSize && size <= maxSize) {
+      clusters.push({
+        cx: cluster.sumX / size,
+        cy: cluster.sumY / size,
+        size,
+        maxBrightness: cluster.maxBrightness
+      });
+    }
+  }
+
+  // Sort by size (largest first) — biggest cluster is most likely the real laser
+  clusters.sort((a, b) => b.size - a.size);
+  return clusters;
 }
