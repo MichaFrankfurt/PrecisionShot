@@ -7,13 +7,13 @@ const PROCESS_WIDTH = 640;
 const PROCESS_HEIGHT = 480;
 const DETECT_INTERVAL_MS = 200;
 
-const MIN_HEIGHT = 200;
-const MAX_HEIGHT = 500;
-const HEIGHT_STEP = 50;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 0.5;
 
 export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
   const { t } = useI18n();
-  const [videoHeight, setVideoHeight] = useState(280);
+  const [zoom, setZoom] = useState(1);
   const videoRef = useRef(null);
   const processCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
@@ -22,6 +22,8 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
   const lastProcessedRef = useRef(0);
   const referenceDataRef = useRef(null);
   const detectedPixelShotsRef = useRef([]); // pixel coords for deduplication
+  const lastShotTimeRef = useRef(0); // cooldown between shots
+  const SHOT_COOLDOWN_MS = 800; // min time between detected shots
 
   const [phase, setPhase] = useState('idle'); // idle | calibrating | detecting | stopped
   const [shots, setShots] = useState([]);
@@ -115,23 +117,33 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
         ctx.drawImage(video, 0, 0, PROCESS_WIDTH, PROCESS_HEIGHT);
         const currentData = ctx.getImageData(0, 0, PROCESS_WIDTH, PROCESS_HEIGHT).data;
 
+        // Cooldown: skip detection if last shot was too recent
+        const now = performance.now();
+        if (now - lastShotTimeRef.current < SHOT_COOLDOWN_MS) {
+          loopRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
         const { newShots } = detectNewShots(
           referenceDataRef.current, currentData,
           PROCESS_WIDTH, PROCESS_HEIGHT,
           detectedPixelShotsRef.current,
-          { threshold: 130, laserColor: 'red', dedupeRadius: 25 }
+          { threshold: 170, laserColor: 'red', dedupeRadius: 40, minBlobSize: 3, maxBlobSize: 300 }
         );
 
+        // Only count 1 shot per detection cycle (the brightest one)
         if (newShots.length > 0) {
-          const mapped = newShots.map(s => mapPixelToTarget(s.px, s.py, PROCESS_WIDTH, PROCESS_HEIGHT));
+          const bestShot = newShots.reduce((a, b) => b.brightness > a.brightness ? b : a, newShots[0]);
+          const mapped = mapPixelToTarget(bestShot.px, bestShot.py, PROCESS_WIDTH, PROCESS_HEIGHT);
 
           detectedPixelShotsRef.current = [
             ...detectedPixelShotsRef.current,
-            ...newShots.map(s => ({ px: s.px, py: s.py }))
+            { px: bestShot.px, py: bestShot.py }
           ];
+          lastShotTimeRef.current = now;
 
           setShots(prev => {
-            const next = [...prev, ...mapped].slice(0, maxShots);
+            const next = [...prev, mapped].slice(0, maxShots);
             if (next.length >= maxShots) {
               setPhase('autoAnalyze');
             }
@@ -250,11 +262,12 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
             <span className="text-yellow-400 text-xs">■ GESTOPPT</span>
           )}
           <div className="flex items-center gap-1">
-            <button onClick={() => setVideoHeight(h => Math.max(MIN_HEIGHT, h - HEIGHT_STEP))}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setVideoHeight(h => Math.max(MIN_HEIGHT, h - HEIGHT_STEP)); }}
+            <button onClick={() => setZoom(z => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setZoom(z => Math.max(MIN_ZOOM, z - ZOOM_STEP)); }}
               className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg transition select-none">−</button>
-            <button onClick={() => setVideoHeight(h => Math.min(MAX_HEIGHT, h + HEIGHT_STEP))}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setVideoHeight(h => Math.min(MAX_HEIGHT, h + HEIGHT_STEP)); }}
+            <span className="text-gray-500 text-xs w-8 text-center">{zoom}x</span>
+            <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setZoom(z => Math.min(MAX_ZOOM, z + ZOOM_STEP)); }}
               className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg transition select-none">+</button>
           </div>
         </div>
@@ -263,7 +276,7 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
       {/* Video + Overlay */}
       <div className={`w-full relative rounded-xl overflow-hidden border border-highlight bg-black ${phase === 'idle' ? 'hidden' : ''}`}>
         <video ref={videoRef} autoPlay playsInline muted
-          style={{ width: '100%', height: `${videoHeight}px`, objectFit: 'cover', display: 'block' }} />
+          style={{ width: '100%', height: '280px', objectFit: 'cover', display: 'block', transform: `scale(${zoom})`, transformOrigin: 'center center' }} />
         <canvas ref={overlayCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
 
