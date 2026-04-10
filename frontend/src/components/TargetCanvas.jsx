@@ -54,8 +54,10 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
           {shots.length}/{maxShots} {t.shots}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={zoomOut} className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-base sm:text-lg transition">−</button>
-          <button onClick={zoomIn} className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-base sm:text-lg transition">+</button>
+          <button onClick={zoomOut} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); zoomOut(); }}
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg sm:text-lg transition select-none">−</button>
+          <button onClick={zoomIn} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); zoomIn(); }}
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded bg-surface border border-highlight text-gray-400 hover:text-white hover:border-accent text-lg sm:text-lg transition select-none">+</button>
         </div>
       </div>
 

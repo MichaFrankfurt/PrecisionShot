@@ -128,7 +128,7 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
           setShots(prev => {
             const next = [...prev, ...mapped].slice(0, maxShots);
             if (next.length >= maxShots) {
-              setPhase('stopped');
+              setPhase('autoAnalyze');
             }
             return next;
           });
@@ -146,6 +146,23 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
     loopRef.current = requestAnimationFrame(loop);
     return () => { if (loopRef.current) cancelAnimationFrame(loopRef.current); };
   }, [phase, maxShots]);
+
+  // Auto-analyze when maxShots reached
+  useEffect(() => {
+    if (phase === 'autoAnalyze') {
+      // Small delay so user sees the last shot marker
+      const timer = setTimeout(() => {
+        if (loopRef.current) cancelAnimationFrame(loopRef.current);
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+        setPhase('stopped');
+        onShotsComplete(shots);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, shots, onShotsComplete]);
 
   // Draw shot markers on overlay
   function drawOverlay() {
