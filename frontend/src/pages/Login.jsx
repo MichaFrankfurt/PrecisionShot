@@ -77,6 +77,12 @@ export default function Login({ onLogin }) {
             {isRegister ? t.login : t.register}
           </button>
         </p>
+
+        <a href="/target.html" target="_blank" rel="noopener"
+          className="mt-4 flex items-center justify-center gap-2 text-gray-500 hover:text-accent text-xs transition">
+          <span>🎯</span>
+          <span>{t.downloadTarget}</span>
+        </a>
       </div>
     </div>
   );
