@@ -105,5 +105,7 @@ export default {
   progressImproving: 'Ты прогрессируешь!',
   progressStable: 'Твой уровень стабилен.',
   progressDeclining: 'Небольшой спад — сосредоточься на основах.',
+  downloadTarget: 'Скачать мишень',
+  downloadTargetHint: 'Шаблон A4 для печати (BDS Z9, для всех дистанций)',
   saveSettings: 'Сохранить',
 };

@@ -105,5 +105,7 @@ export default {
   progressImproving: 'Du verbesserst dich!',
   progressStable: 'Dein Niveau ist stabil.',
   progressDeclining: 'Leichter Rückgang — mehr Fokus auf Grundlagen.',
+  downloadTarget: 'Zielscheibe herunterladen',
+  downloadTargetHint: 'A4-Druckvorlage (BDS Z9, für alle Entfernungen)',
   saveSettings: 'Speichern',
 };

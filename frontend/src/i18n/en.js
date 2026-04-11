@@ -105,5 +105,7 @@ export default {
   progressImproving: 'You are improving!',
   progressStable: 'Your level is stable.',
   progressDeclining: 'Slight decline — focus on fundamentals.',
+  downloadTarget: 'Download Target',
+  downloadTargetHint: 'A4 printable target (BDS Z9, for all distances)',
   saveSettings: 'Save',
 };

@@ -228,6 +228,19 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Target Download */}
+        <a href="/target.html" target="_blank" rel="noopener"
+          className="block bg-surface rounded-xl p-3 sm:p-5 border border-highlight hover:border-accent/30 transition">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🎯</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">{t.downloadTarget}</p>
+              <p className="text-gray-500 text-xs">{t.downloadTargetHint}</p>
+            </div>
+            <span className="text-accent text-lg">↗</span>
+          </div>
+        </a>
+
         {/* Shots per Series — Number Input */}
         <div className="bg-surface rounded-xl p-3 sm:p-5 border border-highlight">
           <label className="block text-sm font-medium text-gray-300 mb-3">{t.shotsPerSeries}</label>
