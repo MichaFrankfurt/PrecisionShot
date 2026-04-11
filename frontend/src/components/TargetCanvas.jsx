@@ -1,6 +1,22 @@
 import { useRef, useState, useCallback } from 'react';
 import { useI18n } from '../i18n/useI18n';
 
+function playClickSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.08);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.1);
+    setTimeout(() => ctx.close(), 200);
+  } catch {}
+}
+
 const BASE_SIZE = 340;
 const MIN_SIZE = 240;
 const MAX_SIZE = 600;
@@ -31,7 +47,7 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
     if (touchedRef.current) { touchedRef.current = false; return; }
     if (shots.length >= maxShots) return;
     const coords = getCoords(e.clientX, e.clientY);
-    if (coords) onShot(coords);
+    if (coords) { playClickSound(); onShot(coords); }
   }
 
   function handleTouchEnd(e) {
@@ -41,7 +57,7 @@ export default function TargetCanvas({ shots, onShot, maxShots = 5 }) {
     const touch = e.changedTouches[0]; // Use changedTouches for touchend
     if (!touch) return;
     const coords = getCoords(touch.clientX, touch.clientY);
-    if (coords) onShot(coords);
+    if (coords) { playClickSound(); onShot(coords); }
   }
 
   function zoomIn() { setSize(s => Math.min(MAX_SIZE, s + STEP)); }

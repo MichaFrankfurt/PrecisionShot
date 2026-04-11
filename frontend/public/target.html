@@ -8,113 +8,104 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 210mm; height: 297mm; }
   body { background: white; display: flex; align-items: center; justify-content: center; position: relative; }
-
   .target { position: relative; width: 210mm; height: 297mm; }
-
-  .target svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-
-  /* Calibration markers */
+  .target svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -52%); }
   .cal { position: absolute; width: 6mm; height: 6mm; border-radius: 50%; background: #000; }
   .cal-tl { top: 8mm; left: 8mm; }
   .cal-tr { top: 8mm; right: 8mm; }
   .cal-bl { bottom: 8mm; left: 8mm; }
   .cal-br { bottom: 8mm; right: 8mm; }
-
-  /* Footer */
   .footer { position: absolute; bottom: 10mm; left: 0; right: 0; text-align: center; font-family: 'Helvetica Neue', Arial, sans-serif; }
   .footer .brand { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 3mm; }
   .footer .brand-name { font-size: 14px; letter-spacing: 2px; color: #333; font-weight: 700; }
   .footer .brand-shot { color: #E31B23; }
   .footer .brand-ai { font-size: 10px; color: #999; }
   .footer .info { font-size: 8px; color: #999; letter-spacing: 0.5px; }
-
-  @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
 <body>
 <div class="target">
-  <!-- Calibration markers -->
   <div class="cal cal-tl"></div>
   <div class="cal cal-tr"></div>
   <div class="cal cal-bl"></div>
   <div class="cal cal-br"></div>
 
-  <!-- Target rings -->
   <svg width="220mm" height="220mm" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-    <!-- Outer rings 1-6 (white, gray lines) -->
+    <!-- Ring 1-4: weiß mit grauen Ringlinien -->
     <circle cx="110" cy="110" r="110" fill="white" stroke="#bbb" stroke-width="0.3"/>
-    <circle cx="110" cy="110" r="100" fill="none" stroke="#888" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="90" fill="none" stroke="#888" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="80" fill="none" stroke="#888" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="70" fill="none" stroke="#888" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="60" fill="none" stroke="#888" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="50" fill="none" stroke="#888" stroke-width="0.25"/>
+    <circle cx="110" cy="110" r="100" fill="none" stroke="#999" stroke-width="0.25"/>
+    <circle cx="110" cy="110" r="90" fill="none" stroke="#999" stroke-width="0.25"/>
+    <circle cx="110" cy="110" r="80" fill="none" stroke="#999" stroke-width="0.25"/>
 
-    <!-- Spiegel: Ring 7-10 (black) -->
-    <circle cx="110" cy="110" r="40" fill="#000"/>
+    <!-- Ring 5-6: GRAU (nahtloser Übergang, keine Extra-Linie zwischen 4 und 5) -->
+    <circle cx="110" cy="110" r="70" fill="#888"/>
+    <circle cx="110" cy="110" r="60" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.25"/>
 
-    <!-- White ring lines on black -->
-    <circle cx="110" cy="110" r="30" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="20" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="10" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="0.3"/>
+    <!-- Ring 7-8-9-10: WEISS (Laser-optimiert, nahtloser Übergang) -->
+    <circle cx="110" cy="110" r="50" fill="white"/>
+    <circle cx="110" cy="110" r="40" fill="none" stroke="#ccc" stroke-width="0.2"/>
+    <circle cx="110" cy="110" r="30" fill="none" stroke="#ccc" stroke-width="0.2"/>
+    <circle cx="110" cy="110" r="20" fill="none" stroke="#ddd" stroke-width="0.15"/>
 
-    <!-- Innen-10 (Mouche) -->
-    <circle cx="110" cy="110" r="5" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="0.25"/>
-    <circle cx="110" cy="110" r="1.2" fill="white"/>
+    <!-- Ring 10: dezente Linie -->
+    <circle cx="110" cy="110" r="10" fill="none" stroke="#ddd" stroke-width="0.15"/>
 
-    <!-- Crosshairs (subtle) -->
-    <line x1="110" y1="0" x2="110" y2="42" stroke="#ccc" stroke-width="0.15"/>
-    <line x1="110" y1="178" x2="110" y2="220" stroke="#ccc" stroke-width="0.15"/>
-    <line x1="0" y1="110" x2="42" y2="110" stroke="#ccc" stroke-width="0.15"/>
-    <line x1="178" y1="110" x2="220" y2="110" stroke="#ccc" stroke-width="0.15"/>
+    <!-- Zentrum: kleiner GRAUER Punkt (Laser gut sichtbar auf grau) -->
+    <circle cx="110" cy="110" r="2.5" fill="#aaa"/>
+    <circle cx="110" cy="110" r="0.8" fill="#888"/>
+
+    <!-- Crosshairs (sehr dezent, nur außen) -->
+    <line x1="110" y1="0" x2="110" y2="38" stroke="#ddd" stroke-width="0.12"/>
+    <line x1="110" y1="182" x2="110" y2="220" stroke="#ddd" stroke-width="0.12"/>
+    <line x1="0" y1="110" x2="38" y2="110" stroke="#ddd" stroke-width="0.12"/>
+    <line x1="182" y1="110" x2="220" y2="110" stroke="#ddd" stroke-width="0.12"/>
 
     <!-- Ring numbers — TOP -->
-    <text x="110" y="5" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">1</text>
-    <text x="110" y="15" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">2</text>
-    <text x="110" y="25" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">3</text>
-    <text x="110" y="35" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">4</text>
-    <text x="110" y="45" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">5</text>
-    <text x="110" y="55" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">6</text>
-    <text x="110" y="73" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">7</text>
-    <text x="110" y="83" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">8</text>
-    <text x="110" y="93" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">9</text>
+    <text x="110" y="5" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">1</text>
+    <text x="110" y="15" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">2</text>
+    <text x="110" y="25" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">3</text>
+    <text x="110" y="35" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">4</text>
+    <text x="110" y="53" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">5</text>
+    <text x="110" y="63" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">6</text>
+    <text x="110" y="73" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">7</text>
+    <text x="110" y="83" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">8</text>
+    <text x="110" y="93" text-anchor="middle" font-family="Arial" font-size="4" fill="#999">9</text>
 
     <!-- Ring numbers — BOTTOM -->
-    <text x="110" y="218" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">1</text>
-    <text x="110" y="208" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">2</text>
-    <text x="110" y="198" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">3</text>
-    <text x="110" y="188" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">4</text>
-    <text x="110" y="178" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">5</text>
-    <text x="110" y="168" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">6</text>
-    <text x="110" y="150" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">7</text>
-    <text x="110" y="140" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">8</text>
-    <text x="110" y="130" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">9</text>
+    <text x="110" y="218" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">1</text>
+    <text x="110" y="208" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">2</text>
+    <text x="110" y="198" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">3</text>
+    <text x="110" y="188" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">4</text>
+    <text x="110" y="170" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">5</text>
+    <text x="110" y="160" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">6</text>
+    <text x="110" y="150" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">7</text>
+    <text x="110" y="140" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">8</text>
+    <text x="110" y="130" text-anchor="middle" font-family="Arial" font-size="4" fill="#999">9</text>
 
     <!-- Ring numbers — LEFT -->
-    <text x="5" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">1</text>
-    <text x="15" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">2</text>
-    <text x="25" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">3</text>
-    <text x="35" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">4</text>
-    <text x="45" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">5</text>
-    <text x="55" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">6</text>
-    <text x="73" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">7</text>
-    <text x="83" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">8</text>
-    <text x="93" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">9</text>
+    <text x="5" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">1</text>
+    <text x="15" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">2</text>
+    <text x="25" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">3</text>
+    <text x="35" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">4</text>
+    <text x="53" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">5</text>
+    <text x="63" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">6</text>
+    <text x="73" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">7</text>
+    <text x="83" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">8</text>
+    <text x="93" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#999">9</text>
 
     <!-- Ring numbers — RIGHT -->
-    <text x="215" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">1</text>
-    <text x="205" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">2</text>
-    <text x="195" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">3</text>
-    <text x="185" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">4</text>
-    <text x="175" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">5</text>
-    <text x="165" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666" font-weight="500">6</text>
-    <text x="147" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">7</text>
-    <text x="137" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">8</text>
-    <text x="127" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">9</text>
+    <text x="215" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">1</text>
+    <text x="205" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">2</text>
+    <text x="195" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">3</text>
+    <text x="185" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">4</text>
+    <text x="167" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">5</text>
+    <text x="157" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#fff" font-weight="500">6</text>
+    <text x="147" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">7</text>
+    <text x="137" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#666">8</text>
+    <text x="127" y="112" text-anchor="middle" font-family="Arial" font-size="4" fill="#999">9</text>
 
-    <!-- PrecisionShot logo mark (small, bottom-left of target) -->
+    <!-- Logo mark -->
     <g transform="translate(8, 205) scale(0.6)">
       <circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="0.8"/>
       <circle cx="10" cy="10" r="6" fill="none" stroke="#333" stroke-width="0.6"/>
@@ -128,13 +119,12 @@
     </g>
   </svg>
 
-  <!-- Footer with branding -->
   <div class="footer">
     <div class="brand">
       <span class="brand-name">PRECISION<span class="brand-shot">SHOT</span></span>
       <span class="brand-ai">.ai</span>
     </div>
-    <div class="info">Kurzwaffen-Präzisionsscheibe · A4 · Ring-Breite: 10mm · Innen-10: 10mm · precisionshot.ai</div>
+    <div class="info">Laser-Trainingsscheibe · A4 · Ring 5-6 grau · Ring 7-10 weiß · precisionshot.ai</div>
   </div>
 </div>
 </body>

@@ -8,6 +8,53 @@ const PROCESS_HEIGHT = 480;
 const DETECT_INTERVAL_MS = 150;
 const SHOT_COOLDOWN_MS = 600;
 const MIN_ZOOM = 1;
+
+// Synthesized gunshot sound effect using Web Audio API
+function playShotSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Impact noise burst
+    const bufferSize = ctx.sampleRate * 0.15;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      // Sharp attack, fast decay
+      const t = i / bufferSize;
+      const envelope = Math.exp(-t * 30);
+      data[i] = (Math.random() * 2 - 1) * envelope * 0.6;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    // Low frequency thump
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
+
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.5, ctx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+
+    // Filter for noise (make it snap-like)
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 800;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 0.4;
+
+    noise.connect(filter).connect(masterGain).connect(ctx.destination);
+    osc.connect(oscGain).connect(masterGain);
+
+    noise.start(ctx.currentTime);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+
+    setTimeout(() => ctx.close(), 300);
+  } catch {}
+}
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.5;
 
@@ -142,6 +189,7 @@ export default function LiveDetection({ maxShots = 5, onShotsComplete }) {
 
         detectedPixelShotsRef.current = [...detectedPixelShotsRef.current, { px: bestShot.px, py: bestShot.py }];
         lastShotTimeRef.current = now;
+        playShotSound();
 
         setShots(prev => {
           const next = [...prev, mapped].slice(0, maxShots);
