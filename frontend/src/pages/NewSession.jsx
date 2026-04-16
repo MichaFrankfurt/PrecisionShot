@@ -115,7 +115,8 @@ export default function NewSession() {
         throw new Error(t.noShotsDetected || 'Keine Treffer erkannt');
       }
 
-      const detectedShots = detected.shots.slice(0, maxShots);
+      // Photo/Upload: use ALL detected shots (maxShots limit only applies to Live/Manual)
+      const detectedShots = detected.shots;
       setShots(detectedShots);
       setLoadingMsg(t.aiAnalyzing || 'AI analysiert...');
 

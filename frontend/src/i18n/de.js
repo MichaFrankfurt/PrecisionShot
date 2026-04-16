@@ -108,4 +108,10 @@ export default {
   downloadTarget: 'Zielscheibe herunterladen',
   downloadTargetHint: 'A4-Druckvorlage (BDS Z9, für alle Entfernungen)',
   saveSettings: 'Speichern',
+
+  // Calibration
+  calibrationSearching: 'Suche Kalibrierungsmarker...',
+  calibrationFound: 'Zielscheibe erkannt',
+  calibrationFailed: 'Auto-Kalibrierung fehlgeschlagen',
+  calibrationFallback: 'Verwende Standard-Einstellungen',
 };

@@ -108,4 +108,10 @@ export default {
   downloadTarget: 'Download Target',
   downloadTargetHint: 'A4 printable target (BDS Z9, for all distances)',
   saveSettings: 'Save',
+
+  // Calibration
+  calibrationSearching: 'Searching calibration markers...',
+  calibrationFound: 'Target detected',
+  calibrationFailed: 'Auto-calibration failed',
+  calibrationFallback: 'Using default settings',
 };

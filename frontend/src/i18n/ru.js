@@ -108,4 +108,10 @@ export default {
   downloadTarget: 'Скачать мишень',
   downloadTargetHint: 'Шаблон A4 для печати (BDS Z9, для всех дистанций)',
   saveSettings: 'Сохранить',
+
+  // Calibration
+  calibrationSearching: 'Поиск калибровочных маркеров...',
+  calibrationFound: 'Мишень обнаружена',
+  calibrationFailed: 'Авто-калибровка не удалась',
+  calibrationFallback: 'Используются стандартные настройки',
 };

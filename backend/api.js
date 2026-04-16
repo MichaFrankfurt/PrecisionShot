@@ -694,7 +694,8 @@ CRITICAL RULES:
 3. Laser marks appear as small dots or burns
 4. Do NOT confuse printing artifacts, dirt, or shadows with bullet holes
 5. Count each distinct hole/mark separately
-6. Pay attention to holes that might overlap or be close together
+6. There may be 5, 10, 15 or more shots — count and locate EVERY single hole, do not stop after 5
+7. Overlapping or touching holes form larger irregular shapes — try to identify individual hits within clusters (a cluster of ~2 hole-widths likely contains 2 shots, ~3 widths = 3 shots, etc.)
 
 Target information:
 - Type: ${ctx.target_type === 'monitor' ? 'Electronic target (Meyton or similar)' : 'Paper target'}
@@ -713,10 +714,22 @@ Coordinate system (IMPORTANT):
 - Negative x = LEFT of center
 - Negative y = ABOVE center (up)
 
-Calibration guide:
-- A hole at the edge of ring 10 (bullseye border): approximately x,y within ±15 of center
-- A hole at ring 5: approximately 75-90 units from center
-- A hole at ring 1 (outer edge): approximately 135-150 units from center
+Precise ring radii (distance from center in coordinate units):
+- Inner-ten (Mouche) = ±7.5
+- Ring 10 outer edge = ±15
+- Ring 9 outer edge = ±30
+- Ring 8 outer edge = ±45
+- Ring 7 outer edge = ±60
+- Ring 6 outer edge = ±75
+- Ring 5 outer edge = ±90
+- Ring 4 outer edge = ±105
+- Ring 3 outer edge = ±120
+- Ring 2 outer edge = ±135
+- Ring 1 outer edge = ±150
+
+Calibration:
+- If 4 small black dots are visible at the paper corners, use them to determine perspective and target center — the target center is equidistant from all 4 corners
+- Use visible ring boundaries as additional reference points for coordinate accuracy
 
 Return ONLY valid JSON (no markdown, no explanation, no code blocks):
 {"shots": [{"x": 0, "y": -5}, {"x": 25, "y": 10}]}
@@ -728,7 +741,7 @@ If no shots detected: {"shots": []}`;
         systemPrompt: visionSystemPrompt,
         textPrompt: `Carefully examine this shooting target image. Detect and locate ALL bullet holes or impact marks. Return their precise coordinates as JSON. The target has ${ctx.target_type === 'monitor' ? 'electronic scoring rings' : 'printed paper rings'} and was used for ${ctx.training_type === 'live' ? 'live fire training' : 'laser training'}.`,
         imageBase64: image,
-        maxTokens: 600,
+        maxTokens: 1500,
         userId: req.user.id
       });
 
@@ -738,7 +751,7 @@ If no shots detected: {"shots": []}`;
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
-      const shots = (parsed.shots || []).slice(0, 5).map(s => ({
+      const shots = (parsed.shots || []).slice(0, 30).map(s => ({
         x: Math.max(-150, Math.min(150, Math.round(s.x))),
         y: Math.max(-150, Math.min(150, Math.round(s.y)))
       }));
